@@ -14,9 +14,6 @@ import {
 } from './util.js';
 
 const processedDownloadIds = new Set();
-const pendingDownloads = new Map();
-const maxAttempts = 5;
-const retryDelayMs = 500;
 
 function getStorageArea() {
   return chrome.storage?.sync || chrome.storage.local;
@@ -86,67 +83,29 @@ function shouldRename(downloadItem, targetFilename) {
   return currentBase !== targetFilename;
 }
 
-function queueRetry(downloadId, attempt) {
-  pendingDownloads.set(downloadId, attempt);
-  setTimeout(() => {
-    chrome.downloads.search({ id: downloadId }, (items) => {
-      if (!items || items.length === 0) {
-        pendingDownloads.delete(downloadId);
-        return;
-      }
-      const item = items[0];
-      attemptRename(item, attempt + 1);
-    });
-  }, retryDelayMs);
-}
-
-async function attemptRename(downloadItem, attempt = 0) {
+async function getSuggestedFilename(downloadItem) {
   if (!downloadItem || processedDownloadIds.has(downloadItem.id)) {
-    return;
+    return null;
   }
   const settings = await readSettings();
   if (!settings.enabled) {
-    return;
+    return null;
   }
-  if (attempt >= maxAttempts) {
-    pendingDownloads.delete(downloadItem.id);
-    return;
-  }
-
   const tabInfo = await getTabInfo(downloadItem.tabId);
-  const hasFilename = Boolean(downloadItem.filename);
-
-  if (!hasFilename) {
-    queueRetry(downloadItem.id, attempt);
-    return;
-  }
-
   const context = {
     domain: getDomainFromDownload(downloadItem, tabInfo, settings),
     title: getTitleFromDownload(downloadItem, tabInfo, settings),
     ext: getExtensionFromDownload(downloadItem),
     date: getDateString(),
   };
-
   const targetFilename = buildTargetFilename(context, settings);
   if (!targetFilename || !/[a-zA-Z0-9]/.test(targetFilename)) {
-    pendingDownloads.delete(downloadItem.id);
-    return;
+    return null;
   }
   if (!shouldRename(downloadItem, targetFilename)) {
-    processedDownloadIds.add(downloadItem.id);
-    pendingDownloads.delete(downloadItem.id);
-    return;
+    return null;
   }
-
-  chrome.downloads.setFilename(
-    downloadItem.id,
-    { filename: targetFilename, conflictAction: 'uniquify' },
-    () => {
-      processedDownloadIds.add(downloadItem.id);
-      pendingDownloads.delete(downloadItem.id);
-    }
-  );
+  return targetFilename;
 }
 
 function getTabInfo(tabId) {
@@ -164,26 +123,20 @@ function getTabInfo(tabId) {
   });
 }
 
-chrome.downloads.onCreated.addListener((downloadItem) => {
-  attemptRename(downloadItem, 0);
-});
-
-chrome.downloads.onChanged.addListener((delta) => {
-  if (!delta || typeof delta.id !== 'number') {
+chrome.downloads.onDeterminingFilename.addListener((downloadItem, suggest) => {
+  if (!downloadItem || typeof suggest !== 'function') {
     return;
   }
-  if (!pendingDownloads.has(delta.id)) {
-    return;
-  }
-  chrome.downloads.search({ id: delta.id }, (items) => {
-    if (!items || items.length === 0) {
-      pendingDownloads.delete(delta.id);
+  void (async () => {
+    const targetFilename = await getSuggestedFilename(downloadItem);
+    if (!targetFilename) {
+      suggest();
       return;
     }
-    const item = items[0];
-    const attempt = pendingDownloads.get(delta.id) || 0;
-    attemptRename(item, attempt + 1);
-  });
+    processedDownloadIds.add(downloadItem.id);
+    suggest({ filename: targetFilename, conflictAction: 'uniquify' });
+  })();
+  return true;
 });
 
 chrome.runtime.onInstalled.addListener(() => {
