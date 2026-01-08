@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Download-Name Fixer for Sanity",
+  "version": "1.0.0",
+  "description": "Automatically renames downloads based on the source page and date.",
+  "permissions": ["downloads", "storage", "tabs"],
+  "background": {
+    "service_worker": "service_worker.js",
+    "type": "module"
+  },
+  "options_page": "options.html"
+}
