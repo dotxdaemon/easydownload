@@ -1,10 +1,15 @@
 // ABOUTME: Runs filename generation tests for the download renaming logic.
 // ABOUTME: Ensures template rendering and sanitization behave as expected.
 import assert from 'node:assert/strict';
-import { buildFilename, sanitizeTitle, formatDate } from '../util.js';
+import {
+  buildFilename,
+  formatDate,
+  resolveDownloadTitle,
+  sanitizeTitle,
+} from '../util.js';
 
 const settings = {
-  template: '{domain}_{title}_{date}.{ext}',
+  template: '{domain}_{title}_{YYYY-MM-DD}.{ext}',
   maxTitleLength: 20,
   removeWww: true,
 };
@@ -46,6 +51,18 @@ const emptyTitle = {
 assert.equal(
   buildFilename(emptyTitle, settings),
   'unknown-domain_download_2024-05-02.txt'
+);
+
+assert.equal(
+  resolveDownloadTitle(
+    {
+      tabTitle: '',
+      urlValue: '',
+      filename: 'download.jpg',
+    },
+    settings.maxTitleLength
+  ),
+  'download'
 );
 
 console.log('All filename tests passed.');
