@@ -3,7 +3,9 @@
 import assert from 'node:assert/strict';
 import {
   buildFilename,
+  buildReferrerPattern,
   formatDate,
+  pickTabByReferrer,
   resolveDownloadTitle,
   sanitizeTitle,
 } from '../util.js';
@@ -63,6 +65,34 @@ assert.equal(
     settings.maxTitleLength
   ),
   'download'
+);
+
+assert.equal(
+  buildReferrerPattern('https://example.com/path/page.html?query=1'),
+  'https://example.com/*'
+);
+
+assert.equal(buildReferrerPattern(''), '');
+
+const matchingTab = {
+  id: 1,
+  url: 'https://example.com/path/page.html?query=1',
+  title: 'Example Page',
+};
+const referrerTabs = [
+  {
+    id: 2,
+    url: 'https://example.com/other',
+    title: 'Other Page',
+  },
+  matchingTab,
+];
+
+assert.equal(pickTabByReferrer('', referrerTabs), null);
+assert.equal(pickTabByReferrer('https://example.com/path/page.html?query=1', []), null);
+assert.equal(
+  pickTabByReferrer('https://example.com/path/page.html?query=1', referrerTabs),
+  matchingTab
 );
 
 console.log('All filename tests passed.');
