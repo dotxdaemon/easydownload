@@ -3,11 +3,13 @@
 
 import {
   buildFilename,
+  buildReferrerPattern,
   defaultSettings,
   extractBasename,
   extractExtensionFromName,
   extractExtensionFromUrl,
   extractHostname,
+  pickTabByReferrer,
   resolveDownloadTitle,
   sanitizeDomain,
   sanitizeExtension,
@@ -91,7 +93,7 @@ async function getSuggestedFilename(downloadItem) {
   if (!settings.enabled) {
     return null;
   }
-  const tabInfo = await getTabInfo(downloadItem.tabId);
+  const tabInfo = await getTabInfo(downloadItem);
   const context = {
     domain: getDomainFromDownload(downloadItem, tabInfo, settings),
     title: getTitleFromDownload(downloadItem, tabInfo, settings),
@@ -108,17 +110,31 @@ async function getSuggestedFilename(downloadItem) {
   return targetFilename;
 }
 
-function getTabInfo(tabId) {
-  if (typeof tabId !== 'number' || tabId < 0) {
+function getTabInfo(downloadItem) {
+  const tabId = downloadItem?.tabId;
+  if (typeof tabId === 'number' && tabId >= 0) {
+    return new Promise((resolve) => {
+      chrome.tabs.get(tabId, (tab) => {
+        if (chrome.runtime.lastError) {
+          resolve(null);
+          return;
+        }
+        resolve(tab);
+      });
+    });
+  }
+  const referrer = downloadItem?.referrer || '';
+  const referrerPattern = buildReferrerPattern(referrer);
+  if (!referrerPattern) {
     return Promise.resolve(null);
   }
   return new Promise((resolve) => {
-    chrome.tabs.get(tabId, (tab) => {
+    chrome.tabs.query({ url: referrerPattern }, (tabs) => {
       if (chrome.runtime.lastError) {
         resolve(null);
         return;
       }
-      resolve(tab);
+      resolve(pickTabByReferrer(referrer, tabs));
     });
   });
 }

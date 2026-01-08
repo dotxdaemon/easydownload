@@ -62,6 +62,30 @@ export function extractBasename(pathValue) {
   return parts[parts.length - 1] || '';
 }
 
+export function buildReferrerPattern(referrer) {
+  if (!referrer) {
+    return '';
+  }
+  try {
+    const parsed = new URL(referrer);
+    return `${parsed.protocol}//${parsed.host}/*`;
+  } catch (error) {
+    return '';
+  }
+}
+
+export function pickTabByReferrer(referrer, tabs) {
+  if (!referrer || !Array.isArray(tabs) || tabs.length === 0) {
+    return null;
+  }
+  const exact = tabs.find((tab) => tab?.url === referrer);
+  if (exact) {
+    return exact;
+  }
+  const firstWithUrl = tabs.find((tab) => tab?.url);
+  return firstWithUrl || null;
+}
+
 export function resolveDownloadTitle(context, maxLength) {
   const tabTitle = context?.tabTitle || '';
   if (tabTitle) {
