@@ -3,7 +3,7 @@
 
 export const defaultSettings = {
   enabled: true,
-  template: '{domain}_{title}_{date}.{ext}',
+  template: '{domain}_{title}_{YYYY-MM-DD}.{ext}',
   maxTitleLength: 80,
   removeWww: true,
   folderRoutingEnabled: false,
@@ -62,6 +62,32 @@ export function extractBasename(pathValue) {
   return parts[parts.length - 1] || '';
 }
 
+export function resolveDownloadTitle(context, maxLength) {
+  const tabTitle = context?.tabTitle || '';
+  if (tabTitle) {
+    return sanitizeTitle(tabTitle, maxLength) || 'download';
+  }
+  const urlValue = context?.urlValue || '';
+  const nameFromUrl = extractBasename(urlValue);
+  if (nameFromUrl) {
+    const stripped = nameFromUrl.replace(/\.[^/.]+$/, '');
+    const sanitized = sanitizeTitle(stripped, maxLength);
+    if (sanitized) {
+      return sanitized;
+    }
+  }
+  const filename = context?.filename || '';
+  const nameFromFilename = extractBasename(filename);
+  if (nameFromFilename) {
+    const stripped = nameFromFilename.replace(/\.[^/.]+$/, '');
+    const sanitized = sanitizeTitle(stripped, maxLength);
+    if (sanitized) {
+      return sanitized;
+    }
+  }
+  return 'download';
+}
+
 export function extractExtensionFromName(name) {
   const base = extractBasename(name);
   const dotIndex = base.lastIndexOf('.');
@@ -91,7 +117,7 @@ export function applyTemplate(template, tokens) {
   result = result
     .replace(/\{domain\}/g, tokens.domain)
     .replace(/\{title\}/g, tokens.title)
-    .replace(/\{date\}/g, tokens.date)
+    .replace(/\{YYYY-MM-DD\}/g, tokens.date)
     .replace(/\{ext\}/g, tokens.ext);
   return result;
 }

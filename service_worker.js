@@ -8,9 +8,9 @@ import {
   extractExtensionFromName,
   extractExtensionFromUrl,
   extractHostname,
+  resolveDownloadTitle,
   sanitizeDomain,
   sanitizeExtension,
-  sanitizeTitle,
 } from './util.js';
 
 const processedDownloadIds = new Set();
@@ -49,20 +49,14 @@ function getDomainFromDownload(downloadItem, tabInfo, settings) {
 }
 
 function getTitleFromDownload(downloadItem, tabInfo, settings) {
-  const tabTitle = tabInfo?.title || '';
-  if (tabTitle) {
-    return sanitizeTitle(tabTitle, settings.maxTitleLength) || 'download';
-  }
-  const urlValue = downloadItem.finalUrl || downloadItem.url || '';
-  const nameFromUrl = extractBasename(urlValue);
-  if (nameFromUrl) {
-    const stripped = nameFromUrl.replace(/\.[^/.]+$/, '');
-    const sanitized = sanitizeTitle(stripped, settings.maxTitleLength);
-    if (sanitized) {
-      return sanitized;
-    }
-  }
-  return 'download';
+  return resolveDownloadTitle(
+    {
+      tabTitle: tabInfo?.title || '',
+      urlValue: downloadItem.finalUrl || downloadItem.url || '',
+      filename: downloadItem.filename || '',
+    },
+    settings.maxTitleLength
+  );
 }
 
 function getExtensionFromDownload(downloadItem) {
@@ -120,10 +114,9 @@ async function attemptRename(downloadItem, attempt = 0) {
   }
 
   const tabInfo = await getTabInfo(downloadItem.tabId);
-  const hasUrl = Boolean(downloadItem.finalUrl || downloadItem.url || tabInfo?.url);
   const hasFilename = Boolean(downloadItem.filename);
 
-  if (!hasUrl || !hasFilename) {
+  if (!hasFilename) {
     queueRetry(downloadItem.id, attempt);
     return;
   }
