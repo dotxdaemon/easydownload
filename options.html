@@ -1,0 +1,115 @@
+<!-- ABOUTME: Provides the configuration UI for download renaming behavior. -->
+<!-- ABOUTME: Lets users edit template settings and preview output. -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Download-Name Fixer for Sanity</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 24px;
+        color: #1f2933;
+      }
+      h1 {
+        font-size: 20px;
+        margin-bottom: 16px;
+      }
+      label {
+        display: block;
+        font-weight: 600;
+        margin-top: 12px;
+      }
+      input[type="text"],
+      input[type="number"] {
+        width: 100%;
+        max-width: 480px;
+        padding: 8px;
+        margin-top: 6px;
+        border: 1px solid #cbd2d9;
+        border-radius: 4px;
+      }
+      .row {
+        margin-top: 16px;
+      }
+      .tokens {
+        font-family: monospace;
+        background: #f5f7fa;
+        padding: 8px;
+        border-radius: 4px;
+        max-width: 480px;
+      }
+      .preview {
+        margin-top: 12px;
+        padding: 12px;
+        background: #f5f7fa;
+        border-radius: 4px;
+        max-width: 480px;
+      }
+      .buttons {
+        margin-top: 20px;
+        display: flex;
+        gap: 12px;
+      }
+      button {
+        padding: 8px 16px;
+        border-radius: 4px;
+        border: 1px solid #52606d;
+        background: #fff;
+        cursor: pointer;
+      }
+      .toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .help {
+        font-size: 12px;
+        color: #52606d;
+        max-width: 480px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Download-Name Fixer for Sanity</h1>
+
+    <div class="row toggle">
+      <input id="enabled" type="checkbox" />
+      <label for="enabled">Enable automatic renaming</label>
+    </div>
+
+    <div class="row">
+      <label for="template">Template</label>
+      <input id="template" type="text" />
+      <div class="help">Use tokens like {domain}, {title}, {date}, {ext}.</div>
+    </div>
+
+    <div class="row">
+      <label for="maxTitleLength">Max title length</label>
+      <input id="maxTitleLength" type="number" min="10" max="200" />
+    </div>
+
+    <div class="row toggle">
+      <input id="removeWww" type="checkbox" />
+      <label for="removeWww">Remove leading www.</label>
+    </div>
+
+    <div class="row">
+      <div class="tokens">Tokens: {domain} {title} {date} {ext}</div>
+    </div>
+
+    <div class="row">
+      <strong>Preview</strong>
+      <div class="preview" id="previewOutput"></div>
+      <div class="help">Example uses domain "example.com" and title "Sample Page".</div>
+    </div>
+
+    <div class="buttons">
+      <button id="save">Save</button>
+      <button id="reset" type="button">Reset</button>
+    </div>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>
