@@ -1,13 +1,14 @@
 // ABOUTME: Handles options UI interactions and storage updates.
 // ABOUTME: Generates live previews from template settings.
 
-import { buildFilename, defaultSettings } from './util.js';
+import { buildFilename, defaultSettings } from './utils.js';
 
 const elements = {
   enabled: document.getElementById('enabled'),
-  template: document.getElementById('template'),
+  filenamePattern: document.getElementById('filenamePattern'),
   maxTitleLength: document.getElementById('maxTitleLength'),
   removeWww: document.getElementById('removeWww'),
+  domainBlacklist: document.getElementById('domainBlacklist'),
   previewOutput: document.getElementById('previewOutput'),
   save: document.getElementById('save'),
   reset: document.getElementById('reset'),
@@ -31,22 +32,29 @@ function writeSettings(settings) {
   });
 }
 
+function normalizeDomainList(textValue) {
+  return textValue
+    .split(/\r?\n/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 function getFormValues() {
   return {
     enabled: elements.enabled.checked,
-    template: elements.template.value.trim(),
+    filenamePattern: elements.filenamePattern.value.trim(),
     maxTitleLength: Number(elements.maxTitleLength.value),
     removeWww: elements.removeWww.checked,
-    folderRoutingEnabled: false,
-    folderRules: [],
+    domainBlacklist: normalizeDomainList(elements.domainBlacklist.value),
   };
 }
 
 function setFormValues(settings) {
   elements.enabled.checked = settings.enabled;
-  elements.template.value = settings.template;
+  elements.filenamePattern.value = settings.filenamePattern;
   elements.maxTitleLength.value = settings.maxTitleLength;
   elements.removeWww.checked = settings.removeWww;
+  elements.domainBlacklist.value = (settings.domainBlacklist || []).join('\n');
 }
 
 function updatePreview() {
@@ -56,6 +64,7 @@ function updatePreview() {
     title: 'Sample Page',
     ext: 'pdf',
     date: new Date('2024-05-02T12:00:00'),
+    originalName: 'Sample Page.pdf',
   };
   elements.previewOutput.textContent = buildFilename(context, settings);
 }
@@ -83,9 +92,10 @@ async function resetSettings() {
 }
 
 ['change', 'input'].forEach((eventName) => {
-  elements.template.addEventListener(eventName, updatePreview);
+  elements.filenamePattern.addEventListener(eventName, updatePreview);
   elements.maxTitleLength.addEventListener(eventName, updatePreview);
   elements.removeWww.addEventListener(eventName, updatePreview);
+  elements.domainBlacklist.addEventListener(eventName, updatePreview);
 });
 
 elements.save.addEventListener('click', () => {

@@ -6,14 +6,12 @@ import {
   buildReferrerPattern,
   defaultSettings,
   extractBasename,
-  extractExtensionFromName,
-  extractExtensionFromUrl,
   extractHostname,
   pickTabByReferrer,
   resolveDownloadTitle,
+  resolveExtensionFromDownload,
   sanitizeDomain,
-  sanitizeExtension,
-} from './util.js';
+} from './utils.js';
 
 const processedDownloadIds = new Set();
 
@@ -59,16 +57,12 @@ function getTitleFromDownload(downloadItem, tabInfo, settings) {
 }
 
 function getExtensionFromDownload(downloadItem) {
-  const fromFilename = extractExtensionFromName(downloadItem.filename || '');
-  if (fromFilename) {
-    return sanitizeExtension(fromFilename);
-  }
-  const fromFinalUrl = extractExtensionFromUrl(downloadItem.finalUrl || '');
-  if (fromFinalUrl) {
-    return sanitizeExtension(fromFinalUrl);
-  }
-  const fromUrl = extractExtensionFromUrl(downloadItem.url || '');
-  return sanitizeExtension(fromUrl);
+  return resolveExtensionFromDownload(downloadItem);
+}
+
+function getOriginalName(downloadItem) {
+  const base = extractBasename(downloadItem.filename || '');
+  return base || '';
 }
 
 function buildTargetFilename(context, settings) {
@@ -85,6 +79,14 @@ function shouldRename(downloadItem, targetFilename) {
   return currentBase !== targetFilename;
 }
 
+function isDomainBlacklisted(domain, blacklist) {
+  if (!domain || !Array.isArray(blacklist) || blacklist.length === 0) {
+    return false;
+  }
+  const normalized = domain.toLowerCase();
+  return blacklist.some((entry) => entry?.trim().toLowerCase() === normalized);
+}
+
 async function getSuggestedFilename(downloadItem) {
   if (!downloadItem || processedDownloadIds.has(downloadItem.id)) {
     return null;
@@ -94,11 +96,16 @@ async function getSuggestedFilename(downloadItem) {
     return null;
   }
   const tabInfo = await getTabInfo(downloadItem);
+  const domain = getDomainFromDownload(downloadItem, tabInfo, settings);
+  if (isDomainBlacklisted(domain, settings.domainBlacklist)) {
+    return null;
+  }
   const context = {
-    domain: getDomainFromDownload(downloadItem, tabInfo, settings),
+    domain,
     title: getTitleFromDownload(downloadItem, tabInfo, settings),
     ext: getExtensionFromDownload(downloadItem),
     date: getDateString(),
+    originalName: getOriginalName(downloadItem),
   };
   const targetFilename = buildTargetFilename(context, settings);
   if (!targetFilename || !/[a-zA-Z0-9]/.test(targetFilename)) {
@@ -141,16 +148,28 @@ function getTabInfo(downloadItem) {
 
 chrome.downloads.onDeterminingFilename.addListener((downloadItem, suggest) => {
   if (!downloadItem || typeof suggest !== 'function') {
-    return;
+    return true;
   }
-  void (async () => {
-    const targetFilename = await getSuggestedFilename(downloadItem);
-    if (!targetFilename) {
-      suggest();
+  let called = false;
+  const safeSuggest = (payload) => {
+    if (called) {
       return;
     }
-    processedDownloadIds.add(downloadItem.id);
-    suggest({ filename: targetFilename, conflictAction: 'uniquify' });
+    called = true;
+    suggest(payload);
+  };
+  void (async () => {
+    try {
+      const targetFilename = await getSuggestedFilename(downloadItem);
+      if (!targetFilename) {
+        safeSuggest();
+        return;
+      }
+      processedDownloadIds.add(downloadItem.id);
+      safeSuggest({ filename: targetFilename, conflictAction: 'uniquify' });
+    } catch (error) {
+      safeSuggest();
+    }
   })();
   return true;
 });
