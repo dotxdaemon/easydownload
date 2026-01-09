@@ -1,13 +1,22 @@
 // ABOUTME: Provides filename construction utilities for download renaming.
 // ABOUTME: Centralizes sanitization and template rendering for reuse.
 
+const mimeExtensionMap = {
+  'image/avif': 'avif',
+  'image/gif': 'gif',
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/svg+xml': 'svg',
+  'image/webp': 'webp',
+  'application/pdf': 'pdf',
+};
+
 export const defaultSettings = {
   enabled: true,
-  template: '{domain}_{title}_{YYYY-MM-DD}.{ext}',
+  filenamePattern: '%domain%_%title%_%date%',
   maxTitleLength: 80,
   removeWww: true,
-  folderRoutingEnabled: false,
-  folderRules: [],
+  domainBlacklist: [],
 };
 
 export function formatDate(date) {
@@ -15,6 +24,16 @@ export function formatDate(date) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function sanitizeFilenamePart(value) {
+  return (value || '').replace(/[<>:"/\\|?*]/g, '_');
+}
+
+export function sanitizeFilename(name) {
+  const parts = String(name || '').split('/');
+  const sanitized = parts.map((part) => sanitizeFilenamePart(part)).join('/');
+  return sanitized.slice(0, 250);
 }
 
 export function sanitizeTitle(title, maxLength) {
@@ -133,17 +152,37 @@ export function extractExtensionFromUrl(urlString) {
   }
 }
 
-export function applyTemplate(template, tokens) {
-  let result = template || '';
+export function resolveExtensionFromDownload(downloadItem) {
+  const fromFilename = sanitizeExtension(extractExtensionFromName(downloadItem?.filename || ''));
+  const fromFinalUrl = sanitizeExtension(extractExtensionFromUrl(downloadItem?.finalUrl || ''));
+  const fromUrl = sanitizeExtension(extractExtensionFromUrl(downloadItem?.url || ''));
+  const mimeExt = sanitizeExtension(mimeExtensionMap[downloadItem?.mime || ''] || '');
+  if (mimeExt && fromFilename && mimeExt !== fromFilename) {
+    return mimeExt;
+  }
+  if (mimeExt && !fromFilename && !fromFinalUrl && !fromUrl) {
+    return mimeExt;
+  }
+  return fromFilename || fromFinalUrl || fromUrl || mimeExt;
+}
+
+function applyFilenamePattern(pattern, tokens) {
+  let result = pattern || '';
   if (!tokens.ext) {
-    result = result.replace(/\.\{ext\}/g, '');
+    result = result.replace(/\.%ext%/g, '');
   }
   result = result
-    .replace(/\{domain\}/g, tokens.domain)
-    .replace(/\{title\}/g, tokens.title)
-    .replace(/\{YYYY-MM-DD\}/g, tokens.date)
-    .replace(/\{ext\}/g, tokens.ext);
+    .replace(/%domain%/g, tokens.domain)
+    .replace(/%title%/g, tokens.title)
+    .replace(/%date%/g, tokens.date)
+    .replace(/%year%/g, tokens.year)
+    .replace(/%original_name%/g, tokens.originalName)
+    .replace(/%ext%/g, tokens.ext);
   return result;
+}
+
+function stripExtension(name) {
+  return (name || '').replace(/\.[^/.]+$/, '');
 }
 
 export function buildFilename(context, settings) {
@@ -151,18 +190,24 @@ export function buildFilename(context, settings) {
   const domain = sanitizeDomain(context.domain, baseSettings.removeWww) || 'unknown-domain';
   const title = sanitizeTitle(context.title, baseSettings.maxTitleLength) || 'download';
   const date = formatDate(context.date);
+  const year = String(context.date.getFullYear());
   const ext = sanitizeExtension(context.ext);
-  const rendered = applyTemplate(baseSettings.template, {
+  const originalName = sanitizeFilenamePart(stripExtension(context.originalName || '')) || title;
+  const rendered = applyFilenamePattern(baseSettings.filenamePattern, {
     domain,
     title,
     date,
+    year,
+    originalName,
     ext,
   });
-  if (!rendered || !/[a-zA-Z0-9]/.test(rendered)) {
-    return `${domain}_${title}_${date}${ext ? `.${ext}` : ''}`;
+  const sanitized = sanitizeFilename(rendered);
+  if (!sanitized || !/[a-zA-Z0-9]/.test(sanitized)) {
+    const fallback = `${domain}_${title}_${date}${ext ? `.${ext}` : ''}`;
+    return sanitizeFilename(fallback);
   }
   if (!ext) {
-    return rendered.replace(/\.+$/, '');
+    return sanitized.replace(/\.+$/, '');
   }
-  return rendered;
+  return sanitized;
 }

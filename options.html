@@ -22,13 +22,19 @@
         margin-top: 12px;
       }
       input[type="text"],
-      input[type="number"] {
+      input[type="number"],
+      textarea {
         width: 100%;
         max-width: 480px;
         padding: 8px;
         margin-top: 6px;
         border: 1px solid #cbd2d9;
         border-radius: 4px;
+        font-family: inherit;
+      }
+      textarea {
+        min-height: 96px;
+        resize: vertical;
       }
       .row {
         margin-top: 16px;
@@ -80,9 +86,11 @@
     </div>
 
     <div class="row">
-      <label for="template">Template</label>
-      <input id="template" type="text" />
-      <div class="help">Use tokens like {domain}, {title}, {YYYY-MM-DD}, {ext}.</div>
+      <label for="filenamePattern">Filename Pattern</label>
+      <input id="filenamePattern" type="text" />
+      <div class="help">
+        Use tokens like %domain%, %title%, %date%, %year%, %original_name%, %ext%.
+      </div>
     </div>
 
     <div class="row">
@@ -96,7 +104,13 @@
     </div>
 
     <div class="row">
-      <div class="tokens">Tokens: {domain} {title} {YYYY-MM-DD} {ext}</div>
+      <label for="domainBlacklist">Domain Blacklist</label>
+      <textarea id="domainBlacklist" placeholder="example.com"></textarea>
+      <div class="help">One domain per line. Matches exact hostnames.</div>
+    </div>
+
+    <div class="row">
+      <div class="tokens">Tokens: %domain% %title% %date% %year% %original_name% %ext%</div>
     </div>
 
     <div class="row">
