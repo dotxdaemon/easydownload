@@ -9,6 +9,8 @@ const mimeExtensionMap = {
   'image/svg+xml': 'svg',
   'image/webp': 'webp',
   'application/pdf': 'pdf',
+  'application/zip': 'zip',
+  'application/x-zip-compressed': 'zip',
 };
 
 export const defaultSettings = {
@@ -152,11 +154,37 @@ export function extractExtensionFromUrl(urlString) {
   }
 }
 
+function resolveExtensionFromMimeType(mime) {
+  if (!mime) {
+    return '';
+  }
+  const [value] = String(mime).split(';');
+  const parts = value.trim().split('/');
+  if (parts.length !== 2) {
+    return '';
+  }
+  const subtype = parts[1].trim().toLowerCase();
+  if (!subtype) {
+    return '';
+  }
+  const withoutSuffix = subtype.split('+')[0];
+  const vendorPart = withoutSuffix.split('.').pop() || '';
+  const withoutPrefix = vendorPart.startsWith('x-') ? vendorPart.slice(2) : vendorPart;
+  const dashedParts = withoutPrefix.split('-');
+  if (vendorPart.startsWith('x-') && dashedParts.length > 1) {
+    return sanitizeExtension(dashedParts[0]);
+  }
+  const dashValue = dashedParts.length > 1 ? dashedParts[dashedParts.length - 1] : withoutPrefix;
+  return sanitizeExtension(dashValue);
+}
+
 export function resolveExtensionFromDownload(downloadItem) {
   const fromFilename = sanitizeExtension(extractExtensionFromName(downloadItem?.filename || ''));
   const fromFinalUrl = sanitizeExtension(extractExtensionFromUrl(downloadItem?.finalUrl || ''));
   const fromUrl = sanitizeExtension(extractExtensionFromUrl(downloadItem?.url || ''));
-  const mimeExt = sanitizeExtension(mimeExtensionMap[downloadItem?.mime || ''] || '');
+  const mimeValue = downloadItem?.mime || '';
+  const mimeExt = sanitizeExtension(mimeExtensionMap[mimeValue] || '') ||
+    resolveExtensionFromMimeType(mimeValue);
   if (mimeExt && fromFilename && mimeExt !== fromFilename) {
     return mimeExt;
   }
