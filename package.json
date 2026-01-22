@@ -1,0 +1,11 @@
+{
+  "name": "easydownload",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/filename.test.mjs",
+    "lint": "node --check service_worker.js options.js utils.js",
+    "typecheck": "node --check service_worker.js options.js utils.js"
+  }
+}

@@ -141,4 +141,24 @@ assert.equal(
   'webp'
 );
 
+assert.equal(
+  resolveExtensionFromDownload({
+    filename: '',
+    mime: 'application/zip',
+    finalUrl: '',
+    url: '',
+  }),
+  'zip'
+);
+
+assert.equal(
+  resolveExtensionFromDownload({
+    filename: '',
+    mime: 'application/x-zip-compressed',
+    finalUrl: '',
+    url: '',
+  }),
+  'zip'
+);
+
 console.log('All filename tests passed.');
